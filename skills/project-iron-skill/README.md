@@ -13,6 +13,7 @@ This skill is metadata-first: it writes model-readable constraints, not only doc
 - `.vscode/RULES.md`
 - `PROJECT_LLM_REQUIREMENTS.json` (authoritative model requirements metadata)
 - `ops.py`
+- `tools/archive_llm_output.py` (LLM conversation output archiver)
 - `LLM_OUTPUTS/YYYY/MM/DD/` (today)
 
 ## Local usage

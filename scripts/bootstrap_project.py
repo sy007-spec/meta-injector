@@ -106,7 +106,13 @@ def run_initializer(target_dir: Path, submodule_dir: Path) -> None:
         joined = "\n".join(str(p) for p in candidates)
         raise RuntimeError(f"Initializer not found. Checked:\n{joined}")
 
+    # Zero-touch bootstrap: init + sync + doctor in one execution.
+    # - init: create missing governance surfaces
+    # - sync: enforce latest template surfaces from project-iron-core
+    # - doctor: verify binding/completeness and fail fast if drift exists
     run([node, str(initializer), "init", str(target_dir)])
+    run([node, str(initializer), "sync", str(target_dir)])
+    run([node, str(initializer), "doctor", str(target_dir)])
 
 
 def parse_args() -> argparse.Namespace:
