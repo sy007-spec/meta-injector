@@ -22,13 +22,13 @@ The bootstrap script:
 From this repository root:
 
 ```bash
-python metadata-constraint-injector-template/scripts/bootstrap_project.py "D:/work/new-project"
+python scripts/bootstrap_project.py "D:/work/new-project"
 ```
 
 Optional submodule path:
 
 ```bash
-python metadata-constraint-injector-template/scripts/bootstrap_project.py "D:/work/new-project" --submodule-path "vendor/project-iron-core"
+python scripts/bootstrap_project.py "D:/work/new-project" --submodule-path "vendor/project-iron-core"
 ```
 
 ## Expected result in new project

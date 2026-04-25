@@ -22,6 +22,22 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
 
 
+def get_origin_url(repo_dir: Path) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=str(repo_dir),
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        url = result.stdout.strip()
+        return url if url else None
+    except subprocess.CalledProcessError:
+        return None
+
+
 def is_git_repo(path: Path) -> bool:
     try:
         subprocess.run(
@@ -48,10 +64,26 @@ def add_submodule(target_dir: Path, submodule_source: Path, submodule_path: str)
     if submodule_dir.exists():
         return submodule_dir
 
-    run(
-        ["git", "submodule", "add", str(submodule_source.resolve()), submodule_path],
-        cwd=target_dir,
-    )
+    origin_url = get_origin_url(submodule_source)
+    if origin_url:
+        run(
+            ["git", "submodule", "add", origin_url, submodule_path],
+            cwd=target_dir,
+        )
+    else:
+        # Local path fallback for repos without origin remote.
+        run(
+            [
+                "git",
+                "-c",
+                "protocol.file.allow=always",
+                "submodule",
+                "add",
+                str(submodule_source.resolve()),
+                submodule_path,
+            ],
+            cwd=target_dir,
+        )
     return submodule_dir
 
 
@@ -63,7 +95,7 @@ def run_initializer(target_dir: Path, submodule_dir: Path) -> None:
     candidates = [
         submodule_dir / "skills" / "project-iron-skill" / "bin" / "project-iron-skill.js",
         submodule_dir
-        / "metadata-constraint-injector-template"
+        / "meta-injector"
         / "skills"
         / "project-iron-skill"
         / "bin"
@@ -97,8 +129,8 @@ def main() -> int:
     args = parse_args()
     target_dir = Path(args.target_dir).resolve()
 
-    # script path: <repo>/metadata-constraint-injector-template/scripts/bootstrap_project.py
-    current_repo = Path(__file__).resolve().parents[2]
+    # script path: <repo>/scripts/bootstrap_project.py
+    current_repo = Path(__file__).resolve().parents[1]
 
     ensure_target_repo(target_dir)
     submodule_dir = add_submodule(target_dir, current_repo, args.submodule_path)
