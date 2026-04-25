@@ -31,7 +31,7 @@ function nowParts() {
 }
 
 function templates() {
-  const spec = `# Project Iron Rules Spec (v1.0)
+  const spec = `# Project Iron Rules Spec (v1.6)
 
 ## Core Rules
 - Append every raw user prompt to \`PROMPT_INPUT_LOG.md\` (append-only).
@@ -43,6 +43,7 @@ function templates() {
 - Archive every LLM conversation output (Cursor/claude-code/VSCode) to:
   - \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`
 - Treat the project as an npx skill orchestration system.
+- **Rule 9 (requirements spec):** Maintain a **complete, version-controlled requirements spec** for the code system *before* substantive build: spec first, implement against the spec, then update the spec from delivery feedback. Complements \`PROJECT_LLM_REQUIREMENTS.json\`.
 `;
 
   const promptLog = `# Prompt Input Log (Append-Only)
@@ -65,6 +66,7 @@ raw_prompt:
 - Keep unified ops entrypoint: \`python ops.py restart\`.
 - Archive every LLM conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 - Load project requirements from \`PROJECT_LLM_REQUIREMENTS.json\` and enforce them in every session.
+- For substantive build or behavior change, author or update a **requirements spec** in-repo first; implement against it; feed back into the spec.
 `;
 
   const cursorRule = `---
@@ -81,6 +83,7 @@ alwaysApply: true
 4) Archive each conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 5) Keep npx skill orchestration as baseline.
 6) Load and enforce \`PROJECT_LLM_REQUIREMENTS.json\` as project metadata.
+7) **Requirements spec first:** complete repo-controlled spec before substantive build; update spec from implementation (Rule 9).
 `;
 
   const vscodeRule = `# VSCode Rules Adapter
@@ -92,6 +95,7 @@ alwaysApply: true
 - Archive each conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 - Keep npx skill orchestration as baseline.
 - Load and enforce \`PROJECT_LLM_REQUIREMENTS.json\` as project metadata.
+- **Requirements spec first** (Rule 9): spec -> build -> feed back to spec.
 `;
 
   const cursorMetadataRule = `---
@@ -121,6 +125,8 @@ Enforcement:
     "unified_ops_entrypoint": "python ops.py restart",
     "archive_every_llm_conversation_output": true,
     "llm_output_archive_path_pattern": "LLM_OUTPUTS/YYYY/MM/DD/HHmmss-topic.md",
+    "requirement_driven_spec_first": true,
+    "requirement_spec_workflow": "author_or_update_spec_before_build_then_feedback_to_spec",
     "tools_in_scope": [
       "cursor",
       "claude-code",
