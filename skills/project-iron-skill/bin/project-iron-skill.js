@@ -8,7 +8,13 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function writeIfMissing(filePath, content) {
+function writeMode(filePath, content, mode) {
+  ensureDir(path.dirname(filePath));
+  if (mode === "overwrite") {
+    const existedBefore = fs.existsSync(filePath);
+    fs.writeFileSync(filePath, content, "utf8");
+    return existedBefore ? "updated" : "created";
+  }
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, content, "utf8");
     return "created";
@@ -24,14 +30,7 @@ function nowParts() {
   return { y, m, d };
 }
 
-function initProject(targetDir) {
-  const root = path.resolve(process.cwd(), targetDir || ".");
-  const date = nowParts();
-
-  ensureDir(path.join(root, ".cursor", "rules"));
-  ensureDir(path.join(root, ".vscode"));
-  ensureDir(path.join(root, "LLM_OUTPUTS", date.y, date.m, date.d));
-
+function templates() {
   const spec = `# Project Iron Rules Spec (v1.0)
 
 ## Core Rules
@@ -135,6 +134,11 @@ Enforcement:
     ".cursor/rules/project-llm-metadata.mdc",
     ".vscode/RULES.md"
   ],
+  "bindings": {
+    "project_iron_core_path": "vendor/project-iron-core",
+    "binding_mode": "submodule",
+    "authority_hint": "host-repo-rules-first"
+  },
   "update_policy": {
     "sync_all_surfaces_on_change": true,
     "record_raw_prompt_in_prompt_log": true
@@ -160,32 +164,187 @@ def main():
 if __name__ == "__main__":
     raise SystemExit(main())
 `;
+  const archiveScript = `#!/usr/bin/env python3
+"""
+Archive one LLM conversation output into:
+LLM_OUTPUTS/YYYY/MM/DD/HHmmss-topic.md
+"""
 
+from __future__ import annotations
+
+import argparse
+import re
+from datetime import datetime
+from pathlib import Path
+
+
+def slugify(topic: str) -> str:
+    normalized = re.sub(r"[^a-zA-Z0-9\\\\u4e00-\\\\u9fff_-]+", "-", topic.strip())
+    normalized = re.sub(r"-{2,}", "-", normalized).strip("-_")
+    return normalized[:80] or "chat-output"
+
+
+def build_output_path(project_root: Path, topic: str, ts: datetime) -> Path:
+    out_dir = project_root / "LLM_OUTPUTS" / ts.strftime("%Y") / ts.strftime("%m") / ts.strftime("%d")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{ts.strftime('%H%M%S')}-{slugify(topic)}.md"
+    return out_dir / filename
+
+
+def read_text(args: argparse.Namespace) -> str:
+    if args.stdin:
+        import sys
+        return sys.stdin.read()
+    if args.source_file:
+        return Path(args.source_file).read_text(encoding="utf-8")
+    return args.content or ""
+
+
+def render_markdown(*, topic: str, source: str, model: str, text: str, ts: datetime) -> str:
+    return (
+        f"# {topic}\\\\n\\\\n"
+        f"- source: {source}\\\\n"
+        f"- model: {model}\\\\n"
+        f"- archived_at: {ts.isoformat(timespec='seconds')}\\\\n\\\\n"
+        "## Output\\\\n\\\\n"
+        f"{text.strip()}\\\\n"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Archive LLM output to LLM_OUTPUTS date folders.")
+    parser.add_argument("--project-root", default=".", help="Project root path (default: current directory).")
+    parser.add_argument("--topic", required=True, help="Topic for filename and title.")
+    parser.add_argument("--source", default="cursor", choices=["cursor", "claude-code", "vscode", "manual"])
+    parser.add_argument("--model", default="unknown", help="Model label.")
+    parser.add_argument("--source-file", help="Read output content from a text/markdown file.")
+    parser.add_argument("--content", help="Inline output content.")
+    parser.add_argument("--stdin", action="store_true", help="Read output content from stdin.")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    text = read_text(args)
+    if not text.strip():
+        print("ERROR: empty output content. Use --source-file, --content, or --stdin.")
+        return 2
+
+    project_root = Path(args.project_root).resolve()
+    ts = datetime.now()
+    output_path = build_output_path(project_root, args.topic, ts)
+    markdown = render_markdown(topic=args.topic, source=args.source, model=args.model, text=text, ts=ts)
+    output_path.write_text(markdown, encoding="utf-8")
+    print(str(output_path))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+`;
+  return {
+    "PROJECT_IRON_RULES_SPEC.md": spec,
+    "PROMPT_INPUT_LOG.md": promptLog,
+    "CLAUDE.md": claude,
+    ".cursor/rules/project-iron-rules.mdc": cursorRule,
+    ".cursor/rules/project-llm-metadata.mdc": cursorMetadataRule,
+    ".vscode/RULES.md": vscodeRule,
+    "PROJECT_LLM_REQUIREMENTS.json": llmMetadata,
+    "ops.py": opsPy,
+    "tools/archive_llm_output.py": archiveScript,
+  };
+}
+
+function applyScaffold(root, mode) {
+  const date = nowParts();
+  ensureDir(path.join(root, ".cursor", "rules"));
+  ensureDir(path.join(root, ".vscode"));
+  ensureDir(path.join(root, "LLM_OUTPUTS", date.y, date.m, date.d));
+
+  const fileMap = templates();
   const outcomes = [];
-  outcomes.push(["PROJECT_IRON_RULES_SPEC.md", writeIfMissing(path.join(root, "PROJECT_IRON_RULES_SPEC.md"), spec)]);
-  outcomes.push(["PROMPT_INPUT_LOG.md", writeIfMissing(path.join(root, "PROMPT_INPUT_LOG.md"), promptLog)]);
-  outcomes.push(["CLAUDE.md", writeIfMissing(path.join(root, "CLAUDE.md"), claude)]);
-  outcomes.push([".cursor/rules/project-iron-rules.mdc", writeIfMissing(path.join(root, ".cursor", "rules", "project-iron-rules.mdc"), cursorRule)]);
-  outcomes.push([".cursor/rules/project-llm-metadata.mdc", writeIfMissing(path.join(root, ".cursor", "rules", "project-llm-metadata.mdc"), cursorMetadataRule)]);
-  outcomes.push([".vscode/RULES.md", writeIfMissing(path.join(root, ".vscode", "RULES.md"), vscodeRule)]);
-  outcomes.push(["PROJECT_LLM_REQUIREMENTS.json", writeIfMissing(path.join(root, "PROJECT_LLM_REQUIREMENTS.json"), llmMetadata)]);
-  outcomes.push(["ops.py", writeIfMissing(path.join(root, "ops.py"), opsPy)]);
+  for (const [rel, content] of Object.entries(fileMap)) {
+    const abs = path.join(root, rel);
+    outcomes.push([rel, writeMode(abs, content, mode)]);
+  }
+  return outcomes;
+}
 
+function initProject(targetDir) {
+  const root = path.resolve(process.cwd(), targetDir || ".");
+  const outcomes = applyScaffold(root, "create-only");
   console.log("project-iron-skill init complete:");
   for (const [file, status] of outcomes) {
     console.log(`- ${status}: ${file}`);
   }
 }
 
+function syncProject(targetDir) {
+  const root = path.resolve(process.cwd(), targetDir || ".");
+  const outcomes = applyScaffold(root, "overwrite");
+  console.log("project-iron-skill sync complete:");
+  for (const [file, status] of outcomes) {
+    console.log(`- ${status}: ${file}`);
+  }
+}
+
+function doctorProject(targetDir) {
+  const root = path.resolve(process.cwd(), targetDir || ".");
+  const requiredFiles = [
+    "PROJECT_IRON_RULES_SPEC.md",
+    "PROMPT_INPUT_LOG.md",
+    "CLAUDE.md",
+    ".cursor/rules/project-iron-rules.mdc",
+    ".cursor/rules/project-llm-metadata.mdc",
+    ".vscode/RULES.md",
+    "PROJECT_LLM_REQUIREMENTS.json",
+    "ops.py",
+    "tools/archive_llm_output.py",
+  ];
+  const missing = requiredFiles.filter((f) => !fs.existsSync(path.join(root, f)));
+  const metadataPath = path.join(root, "PROJECT_LLM_REQUIREMENTS.json");
+  let metadataBindingOk = false;
+
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+      metadataBindingOk = Boolean(parsed.bindings && parsed.bindings.project_iron_core_path);
+    } catch {
+      metadataBindingOk = false;
+    }
+  }
+
+  console.log("project-iron-skill doctor:");
+  console.log(`- target: ${root}`);
+  if (missing.length) {
+    console.log(`- missing files (${missing.length}):`);
+    for (const file of missing) {
+      console.log(`  - ${file}`);
+    }
+  } else {
+    console.log("- required files: OK");
+  }
+  console.log(`- metadata binding: ${metadataBindingOk ? "OK" : "MISSING"}`);
+  const ok = missing.length === 0 && metadataBindingOk;
+  console.log(`- overall: ${ok ? "HEALTHY" : "NEEDS_ATTENTION"}`);
+  process.exitCode = ok ? 0 : 2;
+}
+
 function help() {
   console.log("Usage:");
   console.log("  project-iron-skill init [target-dir]");
+  console.log("  project-iron-skill sync [target-dir]");
+  console.log("  project-iron-skill doctor [target-dir]");
   console.log("  project-iron-skill help");
 }
 
 const cmd = process.argv[2] || "help";
 if (cmd === "init") {
   initProject(process.argv[3] || ".");
+} else if (cmd === "sync") {
+  syncProject(process.argv[3] || ".");
+} else if (cmd === "doctor") {
+  doctorProject(process.argv[3] || ".");
 } else {
   help();
 }

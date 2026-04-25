@@ -49,7 +49,15 @@ def add_submodule(target_dir: Path, submodule_source: Path, submodule_path: str)
         return submodule_dir
 
     run(
-        ["git", "submodule", "add", str(submodule_source.resolve()), submodule_path],
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "submodule",
+            "add",
+            str(submodule_source.resolve()),
+            submodule_path,
+        ],
         cwd=target_dir,
     )
     return submodule_dir
@@ -74,7 +82,13 @@ def run_initializer(target_dir: Path, submodule_dir: Path) -> None:
         joined = "\n".join(str(p) for p in candidates)
         raise RuntimeError(f"Initializer not found. Checked:\n{joined}")
 
+    # Zero-touch bootstrap: init + sync + doctor in one execution.
+    # - init: create missing governance surfaces
+    # - sync: enforce latest template surfaces from project-iron-core
+    # - doctor: verify binding/completeness and fail fast if drift exists
     run([node, str(initializer), "init", str(target_dir)])
+    run([node, str(initializer), "sync", str(target_dir)])
+    run([node, str(initializer), "doctor", str(target_dir)])
 
 
 def parse_args() -> argparse.Namespace:
@@ -97,8 +111,8 @@ def main() -> int:
     args = parse_args()
     target_dir = Path(args.target_dir).resolve()
 
-    # script path: <repo>/metadata-constraint-injector-template/scripts/bootstrap_project.py
-    current_repo = Path(__file__).resolve().parents[2]
+    # script path: <repo>/scripts/bootstrap_project.py
+    current_repo = Path(__file__).resolve().parents[1]
 
     ensure_target_repo(target_dir)
     submodule_dir = add_submodule(target_dir, current_repo, args.submodule_path)
