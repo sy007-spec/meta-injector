@@ -1,0 +1,9 @@
+{
+  "name": "project-iron-skill",
+  "version": "0.1.0",
+  "description": "Baseline npx skill to bootstrap project iron rules and workflow.",
+  "bin": {
+    "project-iron-skill": "bin/project-iron-skill.js"
+  },
+  "license": "MIT"
+}
