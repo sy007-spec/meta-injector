@@ -7,6 +7,7 @@ This skill is metadata-first: it writes model-readable constraints, not only doc
 ## What it initializes
 - `PROJECT_IRON_RULES_SPEC.md`
 - `PROMPT_INPUT_LOG.md`
+- `AGENTS.md` (OpenAI Codex rules adapter)
 - `CLAUDE.md`
 - `.cursor/rules/project-iron-rules.mdc`
 - `.cursor/rules/project-llm-metadata.mdc` (`alwaysApply` metadata contract)
@@ -30,5 +31,5 @@ npx project-iron-skill init my-new-project
 
 ## Purpose
 This is the first reusable skill in your npx skill orchestration system.  
-It captures your standardized prompt logging, rule sync workflow, unified ops entrypoint, and date-layered LLM output archive.
+It captures your standardized prompt logging, Codex/Claude/Cursor/VSCode rule sync workflow, unified ops entrypoint, and date-layered LLM output archive.
 It also injects project metadata so LLM tooling can enforce constraints from machine-readable sources.
