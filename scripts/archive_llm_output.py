@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--source",
         default="cursor",
-        choices=["cursor", "claude-code", "vscode", "manual"],
+        choices=["codex", "cursor", "claude-code", "vscode", "manual"],
         help="Conversation source.",
     )
     parser.add_argument("--model", default="unknown", help="Model label.")

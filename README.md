@@ -11,6 +11,7 @@ The bootstrap script:
 - initializes git in the target if needed
 - adds the **current repository** as a submodule
 - runs the embedded `skills/project-iron-skill` pipeline (`init -> sync -> doctor`) to scaffold, enforce, and verify governance in one pass
+- supports `AGENTS.md` as the OpenAI Codex rules adapter alongside Claude, Cursor, and VSCode rule surfaces
 
 ## Script
 
@@ -70,6 +71,7 @@ echo "final response" | python vendor/project-iron-core/scripts/archive_llm_outp
 - iron-rule files initialized, including:
   - `PROJECT_IRON_RULES_SPEC.md`
   - `PROMPT_INPUT_LOG.md`
+  - `AGENTS.md`
   - `CLAUDE.md`
   - `.cursor/rules/project-iron-rules.mdc`
   - `.cursor/rules/project-llm-metadata.mdc`

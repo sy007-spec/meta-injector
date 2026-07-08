@@ -31,16 +31,17 @@ function nowParts() {
 }
 
 function templates() {
-  const spec = `# Project Iron Rules Spec (v1.6)
+  const spec = `# Project Iron Rules Spec (v1.7)
 
 ## Core Rules
 - Append every raw user prompt to \`PROMPT_INPUT_LOG.md\` (append-only).
 - On every new intake, check and sync rules in:
+  - \`AGENTS.md\`
   - \`CLAUDE.md\`
   - \`.cursor/rules/project-iron-rules.mdc\`
   - \`.vscode/RULES.md\`
 - Keep all ops under one command: \`python ops.py restart\`.
-- Archive every LLM conversation output (Cursor/claude-code/VSCode) to:
+- Archive every LLM conversation output (Codex/Cursor/claude-code/VSCode) to:
   - \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`
 - Treat the project as an npx skill orchestration system.
 - **Rule 9 (requirements spec):** Maintain a **complete, version-controlled requirements spec** for the code system *before* substantive build: spec first, implement against the spec, then update the spec from delivery feedback. Complements \`PROJECT_LLM_REQUIREMENTS.json\`.
@@ -58,11 +59,22 @@ raw_prompt:
 \`\`\`
 `;
 
+  const agents = `# Codex Project Rules Adapter
+
+## Mandatory Rules
+- Archive every raw prompt to \`PROMPT_INPUT_LOG.md\`.
+- On each intake, sync \`AGENTS.md\`, \`CLAUDE.md\`, Cursor rules, and VSCode rules.
+- Keep unified ops entrypoint: \`python ops.py restart\`.
+- Archive every LLM conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
+- Load project requirements from \`PROJECT_LLM_REQUIREMENTS.json\` and enforce them in every session.
+- For substantive build or behavior change, author or update a **requirements spec** in-repo first; implement against it; feed back into the spec.
+`;
+
   const claude = `# Claude Project Rules Adapter
 
 ## Mandatory Rules
 - Archive every raw prompt to \`PROMPT_INPUT_LOG.md\`.
-- On each intake, sync \`CLAUDE.md\`, Cursor rules, and VSCode rules.
+- On each intake, sync \`AGENTS.md\`, \`CLAUDE.md\`, Cursor rules, and VSCode rules.
 - Keep unified ops entrypoint: \`python ops.py restart\`.
 - Archive every LLM conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 - Load project requirements from \`PROJECT_LLM_REQUIREMENTS.json\` and enforce them in every session.
@@ -78,7 +90,7 @@ alwaysApply: true
 # Project Iron Rules (Cursor)
 
 1) Archive prompts into \`PROMPT_INPUT_LOG.md\`.
-2) Sync rules across Claude/Cursor/VSCode on every intake.
+2) Sync rules across AGENTS/Codex, Claude, Cursor, and VSCode on every intake.
 3) Use unified ops command: \`python ops.py restart\`.
 4) Archive each conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 5) Keep npx skill orchestration as baseline.
@@ -90,7 +102,7 @@ alwaysApply: true
 
 ## Mandatory
 - Archive prompts into \`PROMPT_INPUT_LOG.md\`.
-- Sync rules across Claude/Cursor/VSCode on every intake.
+- Sync rules across AGENTS/Codex, Claude, Cursor, and VSCode on every intake.
 - Use unified ops command: \`python ops.py restart\`.
 - Archive each conversation output to \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`.
 - Keep npx skill orchestration as baseline.
@@ -128,6 +140,7 @@ Enforcement:
     "requirement_driven_spec_first": true,
     "requirement_spec_workflow": "author_or_update_spec_before_build_then_feedback_to_spec",
     "tools_in_scope": [
+      "codex",
       "cursor",
       "claude-code",
       "vscode"
@@ -135,6 +148,7 @@ Enforcement:
   },
   "rule_surfaces": [
     "PROJECT_IRON_RULES_SPEC.md",
+    "AGENTS.md",
     "CLAUDE.md",
     ".cursor/rules/project-iron-rules.mdc",
     ".cursor/rules/project-llm-metadata.mdc",
@@ -221,7 +235,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Archive LLM output to LLM_OUTPUTS date folders.")
     parser.add_argument("--project-root", default=".", help="Project root path (default: current directory).")
     parser.add_argument("--topic", required=True, help="Topic for filename and title.")
-    parser.add_argument("--source", default="cursor", choices=["cursor", "claude-code", "vscode", "manual"])
+    parser.add_argument("--source", default="cursor", choices=["codex", "cursor", "claude-code", "vscode", "manual"])
     parser.add_argument("--model", default="unknown", help="Model label.")
     parser.add_argument("--source-file", help="Read output content from a text/markdown file.")
     parser.add_argument("--content", help="Inline output content.")
@@ -251,6 +265,7 @@ if __name__ == "__main__":
   return {
     "PROJECT_IRON_RULES_SPEC.md": spec,
     "PROMPT_INPUT_LOG.md": promptLog,
+    "AGENTS.md": agents,
     "CLAUDE.md": claude,
     ".cursor/rules/project-iron-rules.mdc": cursorRule,
     ".cursor/rules/project-llm-metadata.mdc": cursorMetadataRule,
@@ -299,6 +314,7 @@ function doctorProject(targetDir) {
   const requiredFiles = [
     "PROJECT_IRON_RULES_SPEC.md",
     "PROMPT_INPUT_LOG.md",
+    "AGENTS.md",
     "CLAUDE.md",
     ".cursor/rules/project-iron-rules.mdc",
     ".cursor/rules/project-llm-metadata.mdc",
