@@ -31,7 +31,7 @@ function nowParts() {
 }
 
 function templates() {
-  const spec = `# Project Iron Rules Spec (v1.7)
+  const spec = `# Project Iron Rules Spec (v1.8)
 
 ## Core Rules
 - Append every raw user prompt to \`PROMPT_INPUT_LOG.md\` (append-only).
@@ -45,6 +45,9 @@ function templates() {
   - \`LLM_OUTPUTS/YYYY/MM/DD/*.md\`
 - Treat the project as an npx skill orchestration system.
 - **Rule 9 (requirements spec):** Maintain a **complete, version-controlled requirements spec** for the code system *before* substantive build: spec first, implement against the spec, then update the spec from delivery feedback. Complements \`PROJECT_LLM_REQUIREMENTS.json\`.
+- **Rule 10 (domain rules + skills):** This file and its sibling adapters (\`AGENTS.md\`/\`CLAUDE.md\`/Cursor/VSCode rules) are generic, cross-project governance — they must never carry project-specific business/domain knowledge. Once a host project starts doing real domain work, it must maintain its own \`DOMAIN_IRON_RULES.md\` (renamed to fit the project, e.g. \`INNOAGENT_IRON_RULES.md\`) plus a \`skills/\` directory of step-by-step playbooks, grounded in real incidents from that project's own history — not abstract best practices copied from elsewhere.
+- **Rule 11 (host-owned files):** \`ops.py\`, \`PROJECT_LLM_REQUIREMENTS.json\`, and \`PROMPT_INPUT_LOG.md\` accumulate real, host-project-specific state after \`init\` (business logic, metadata bindings, append-only prompt history) and are therefore **excluded from \`sync\`'s overwrite** by design (see \`bin/project-iron-skill.js\`'s \`HOST_OWNED_FILES\`) — \`sync\` only re-applies the pure governance/rule-adapter files. Do not hand-edit this exclusion away; a host project that has customized \`ops.py\` will be destroyed by a naive full-overwrite sync.
+- **Rule 12 (agent-driven data maintenance disclosure):** If AI coding agents (Codex/Claude Code/Cursor-class tools) are the *primary* mechanism by which this project's domain data enters the system — rather than humans filling in forms — the host project must: (a) adopt one consistent name for this tool category and use it everywhere, (b) state this data-entry mechanism explicitly in its domain rules file, and (c) surface the same statement visibly in the product's own UI/homepage, not only in agent-facing docs — human collaborators need to know how the data got there too.
 `;
 
   const promptLog = `# Prompt Input Log (Append-Only)
@@ -128,12 +131,12 @@ Enforcement:
 `;
 
   const llmMetadata = `{
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "project_mode": "npx_skill_orchestration",
   "requirements": {
     "prompt_archive_append_only": true,
     "rule_surfaces_sync_on_each_intake": true,
-    "enforce_english_ui_only": true,
+    "ui_language_policy": "TODO: declare this project's actual UI/documentation language policy here (do not leave a default you have not verified against the real product -- an unverified language flag that contradicts the shipped UI is worse than no flag at all)",
     "unified_ops_entrypoint": "python ops.py restart",
     "archive_every_llm_conversation_output": true,
     "llm_output_archive_path_pattern": "LLM_OUTPUTS/YYYY/MM/DD/HHmmss-topic.md",
@@ -154,10 +157,22 @@ Enforcement:
     ".cursor/rules/project-llm-metadata.mdc",
     ".vscode/RULES.md"
   ],
+  "domain_rule_surfaces": [
+    "DOMAIN_IRON_RULES.md (rename to fit your project once real domain work begins -- see Rule 10 in PROJECT_IRON_RULES_SPEC.md)",
+    "skills/"
+  ],
   "bindings": {
     "project_iron_core_path": "vendor/project-iron-core",
     "binding_mode": "submodule",
-    "authority_hint": "host-repo-rules-first"
+    "authority_hint": "host-repo-rules-first",
+    "sync_forbidden_for": [
+      "ops.py",
+      "PROJECT_LLM_REQUIREMENTS.json",
+      "PROMPT_INPUT_LOG.md",
+      "DOMAIN_IRON_RULES.md",
+      "skills/README.md"
+    ],
+    "sync_forbidden_reason": "These files accumulate real host-project state after init (business logic, metadata bindings, prompt history, or the host project's own domain rules/skills once filled in) and are excluded from sync's overwrite by design -- see Rule 11 in PROJECT_IRON_RULES_SPEC.md."
   },
   "update_policy": {
     "sync_all_surfaces_on_change": true,
@@ -262,6 +277,46 @@ def main() -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 `;
+
+  const domainIronRules = `# Domain Iron Rules (rename this file to fit your project, e.g. \`<PROJECT>_IRON_RULES.md\`)
+
+## What this file is for
+
+\`PROJECT_IRON_RULES_SPEC.md\` and its adapters (\`AGENTS.md\`/\`CLAUDE.md\`/Cursor/VSCode rules) are generic, vendor-templated governance -- they get wholesale overwritten by \`project-iron-skill sync\` and must never carry your project's actual domain knowledge (see Rule 10/11 in \`PROJECT_IRON_RULES_SPEC.md\`).
+
+This file is where **your project's own engineering standard** lives: the domain-specific rules and hard-won lessons for building *this particular product* correctly, so the next AI coding agent session (Codex/Claude Code/Cursor) inherits them instead of re-learning them the hard way.
+
+**This file starts empty on purpose.** Do not fill it with generic best practices copied from a blog post. Every rule you add here should be traceable to something that actually happened in this repository -- a real bug, a real design decision, a real constraint from your actual users or business domain. Write the rule *after* the incident, grounded in what really happened, referencing the actual commit/file/date if you can.
+
+## Suggested sections to grow over time
+
+- **Positioning**: what is this product actually for, and who/what actually maintains it day to day (human PMs clicking a UI? AI coding agents processing raw material you feed them? both)? State this explicitly and keep it current -- see the "agent-driven data maintenance disclosure" rule below if it applies to you.
+- **Data integrity rules**: what must never be fabricated, what derived metrics must trace back to real fields, what the safe default is when data is ambiguous or missing.
+- **Deletion/archival semantics**: if your domain has an audit trail requirement, state the soft-delete convention here explicitly.
+- **State persistence closure**: if your architecture has a write-then-project pattern (writes go to an authority store, reads come from a generated/cached projection), document the rule that every write path must refresh every downstream projection, and keep a running list of real incidents where this was violated.
+- **Access control layering**: how permission tiers map to actions in your domain.
+- **Cross-entity linking conventions**: how relationships between your domain objects should be modeled and surfaced in the UI.
+- **Agent-driven data maintenance disclosure** (only if it applies to you): if AI coding agents are the *primary* way domain data enters your system rather than humans filling in forms, name that tool category consistently, and state the mechanism explicitly here *and* visibly in your product's own UI/homepage -- not only in agent-facing docs, since human collaborators need to understand it too.
+
+## Companion: \`skills/\`
+
+Once this file has real content, start extracting the *procedures* into \`skills/\` as separate, step-by-step Markdown playbooks -- one skill per recurring task, written from what you actually did, specific enough to execute without re-deriving the steps from first principles. See \`skills/README.md\`.
+`;
+
+  const skillsReadme = `# Skills Index
+
+This is your project's own skills library -- domain-specific, step-by-step playbooks for recurring engineering tasks in *this* repository, as opposed to generic programming knowledge. It complements \`DOMAIN_IRON_RULES.md\` (rename to fit your project): that file states the *principles*, this directory encodes the *procedures* that follow from them.
+
+## Guidelines for writing a skill here
+
+- One skill, one file, named as a verb phrase (\`add-manageable-entity.md\`, not \`entity-management.md\`).
+- Base it on a procedure you actually executed in this repository, not abstract best practice. Reference real commits/incidents where useful.
+- Write steps specific enough to execute directly -- commands to run, files to touch, what "done" looks like -- not restatements of good intentions.
+- If you are using Claude Code, consider also adding a thin wrapper at \`.claude/skills/<name>/SKILL.md\` (YAML frontmatter with \`name\`/\`description\`, body pointing back to the full playbook here) so the skill is auto-discoverable in future sessions instead of being a document nobody reads.
+
+This directory starts empty. Populate it as your project's real, recurring workflows emerge -- don't pre-populate it with generic scaffolding you haven't actually needed yet.
+`;
+
   return {
     "PROJECT_IRON_RULES_SPEC.md": spec,
     "PROMPT_INPUT_LOG.md": promptLog,
@@ -273,8 +328,28 @@ if __name__ == "__main__":
     "PROJECT_LLM_REQUIREMENTS.json": llmMetadata,
     "ops.py": opsPy,
     "tools/archive_llm_output.py": archiveScript,
+    "DOMAIN_IRON_RULES.md": domainIronRules,
+    "skills/README.md": skillsReadme,
   };
 }
+
+// These files accumulate real, irreplaceable host-project state after `init`
+// (business logic, host-specific metadata bindings, append-only prompt
+// history, or the host project's own domain rules/skills once it starts
+// growing them in place). `sync` must never overwrite them -- a project that
+// has customized `ops.py` into a real application, or filled in
+// DOMAIN_IRON_RULES.md/skills/README.md with real content, would have that
+// work destroyed by a routine "pull latest governance" sync otherwise. They
+// are only ever create-only, even when `sync` (overwrite mode) is requested
+// for everything else. See Rule 11 in the `PROJECT_IRON_RULES_SPEC.md`
+// template above.
+const HOST_OWNED_FILES = new Set([
+  "ops.py",
+  "PROJECT_LLM_REQUIREMENTS.json",
+  "PROMPT_INPUT_LOG.md",
+  "DOMAIN_IRON_RULES.md",
+  "skills/README.md",
+]);
 
 function applyScaffold(root, mode) {
   const date = nowParts();
@@ -286,7 +361,8 @@ function applyScaffold(root, mode) {
   const outcomes = [];
   for (const [rel, content] of Object.entries(fileMap)) {
     const abs = path.join(root, rel);
-    outcomes.push([rel, writeMode(abs, content, mode)]);
+    const effectiveMode = HOST_OWNED_FILES.has(rel) ? "create-only" : mode;
+    outcomes.push([rel, writeMode(abs, content, effectiveMode)]);
   }
   return outcomes;
 }
@@ -322,6 +398,8 @@ function doctorProject(targetDir) {
     "PROJECT_LLM_REQUIREMENTS.json",
     "ops.py",
     "tools/archive_llm_output.py",
+    "DOMAIN_IRON_RULES.md",
+    "skills/README.md",
   ];
   const missing = requiredFiles.filter((f) => !fs.existsSync(path.join(root, f)));
   const metadataPath = path.join(root, "PROJECT_LLM_REQUIREMENTS.json");

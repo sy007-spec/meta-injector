@@ -51,6 +51,14 @@ node vendor/project-iron-core/skills/project-iron-skill/bin/project-iron-skill.j
 `doctor` exits with non-zero code when required governance files are missing
 or metadata binding is not declared in `PROJECT_LLM_REQUIREMENTS.json`.
 
+### Host-owned files are excluded from `sync`
+
+`ops.py`, `PROJECT_LLM_REQUIREMENTS.json`, and `PROMPT_INPUT_LOG.md` accumulate real, host-project-specific state after `init` — real business logic, real metadata bindings, a real append-only prompt history. `sync` therefore only ever *creates* these three if missing; it never overwrites them, even though every other governed file is fully overwritten on `sync`. This is deliberate: an earlier version of this tool did overwrite them unconditionally, which meant running `sync` against a host project that had already grown `ops.py` into a real application would silently destroy it. If you need to intentionally reset a host-owned file back to the template, delete it and re-run `init`, or diff the template in `bin/project-iron-skill.js`'s `templates()` function by hand.
+
+### Domain rules and skills are the host project's responsibility, not this repo's
+
+This repository stays deliberately generic — it has no idea what any given host project actually does. `init` scaffolds two empty starting points for the host project to grow on its own: `DOMAIN_IRON_RULES.md` (rename to fit the project, e.g. `INNOAGENT_IRON_RULES.md`) and `skills/README.md`. Both are in `HOST_OWNED_FILES` too, so once a host project fills them in with real content, `sync` will never overwrite that work — `sync` only ever re-creates them if they were deleted. If you rename `DOMAIN_IRON_RULES.md` (the recommended path), `sync` will just recreate a fresh, empty `DOMAIN_IRON_RULES.md` alongside your renamed file — harmless, just delete the stray file if it bothers you.
+
 ## Output Archive Command
 
 Use project-iron-core script to write one conversation output into date-layered archive:
@@ -78,4 +86,6 @@ echo "final response" | python vendor/project-iron-core/scripts/archive_llm_outp
   - `.vscode/RULES.md`
   - `PROJECT_LLM_REQUIREMENTS.json`
   - `ops.py`
+  - `DOMAIN_IRON_RULES.md` (empty starting point for the host project's own domain-specific rules — rename to fit, e.g. `INNOAGENT_IRON_RULES.md`)
+  - `skills/README.md` (empty starting point for the host project's own skills library)
   - `LLM_OUTPUTS/YYYY/MM/DD/`
