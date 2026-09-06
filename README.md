@@ -35,6 +35,43 @@ python scripts/bootstrap_project.py "D:/work/new-project" --submodule-path "vend
 
 No additional manual `init/sync/doctor` call is required after bootstrap.
 
+## Testing
+
+Regression tests live in `tests/` and use only the Python standard library — no
+pytest or other dependency is required.
+
+```bash
+# full suite, end-to-end cases included
+python tests/test_bootstrap_project.py
+
+# unit cases only, skips the slower end-to-end runs
+IRON_SKIP_E2E=1 python tests/test_bootstrap_project.py
+
+# equivalent via unittest
+python -m unittest tests.test_bootstrap_project -v
+```
+
+On Windows, set the env var first (`set IRON_SKIP_E2E=1` in cmd,
+`$env:IRON_SKIP_E2E=1` in PowerShell) instead of prefixing the command.
+
+The end-to-end cases run the full `init -> sync -> doctor` pipeline against a
+throwaway git project. They rewrite the source repo's remote URL to the local
+checkout via `url.<path>.insteadOf`, so they never need network access or SSH
+credentials.
+
+These tests exist because submodule bootstrap fails in ways that are invisible
+from the code alone:
+
+- a submodule registered in `.gitmodules` and in the index, but with an empty
+  worktree — bootstrap must self-heal rather than fail with
+  "Initializer not found"
+- re-running `git submodule add` for an already-registered path, which git
+  rejects with "already exists in the index"
+- `git submodule update --init` silently no-op'ing when the gitlink still
+  matches the index even though the files are gone
+- bootstrap must remain idempotent: a second run against a healthy project
+  triggers no recovery output
+
 ## Lifecycle Commands (inside target project)
 
 ```bash
